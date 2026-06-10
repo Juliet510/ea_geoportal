@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ZIMSTAT EA Geoportal</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css">
+<script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+}
+
+/* MAP */
+#map {
+    width: 100%;
+    height: 100vh;
+}
+
+/* SEARCH PANEL */
+.panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    background: white;
+    padding: 15px;
+    width: 260px;
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+.panel input,
+.panel button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.panel button {
+    background: #0066cc;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+/* BASEMAP SWITCH */
+#basemapSwitcher {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: white;
+    padding: 10px;
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+
+<body>
+
+<!-- SEARCH PANEL -->
+<div class="panel">
+    <h3>EA Search</h3>
+    <input id="eaCode" placeholder="Enter EA Code">
+    <button onclick="searchEA()">Search</button>
+    <div id="result">Ready</div>
+</div>
+
+<!-- BASEMAP SWITCH -->
+<div id="basemapSwitcher">
+    <b>Basemap</b><br>
+    <select onchange="switchBasemap(this.value)">
+        <option value="osm">OpenStreetMap</option>
+        <option value="google">Google Satellite</option>
+    </select>
+</div>
+
+<div id="map"></div>
+
+<script>
+
+// =========================
+// BASEMAPS
+// =========================
+const osmLayer = new ol.layer.Tile({
+    source: new ol.source.OSM(),
+    visible: true
+});
+
+const googleSatellite = new ol.layer.Tile({
+    source: new ol.source.XYZ({
+        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+    }),
+    visible: false
+});
+
+// =========================
+// MAP
+// =========================
+const map = new ol.Map({
+    target: "map",
+    layers: [
+        osmLayer,
+        googleSatellite
+    ],
+    view: new ol.View({
+        center: ol.proj.fromLonLat([31.05, -18.01]),
+        zoom: 6
+    })
+});
+
+let highlightLayer;
+
+// =========================
+// SWITCH BASEMAP
+// =========================
+function switchBasemap(type) {
+    if (type === "osm") {
+        osmLayer.setVisible(true);
+        googleSatellite.setVisible(false);
+    }
+
+    if (type === "google") {
+        osmLayer.setVisible(false);
+        googleSatellite.setVisible(true);
+    }
+}
+
+// =========================
+// SEARCH FUNCTION
+// =========================
+function searchEA() {
+
+    let code = document.getElementById("eaCode").value.trim();
+
+    if (!code) {
+        alert("Enter EA Code");
+        return;
+    }
+
+    code = code.toUpperCase();
+
+    document.getElementById("result").innerHTML = "Searching...";
+
+    fetch("http://localhost:3000/search/" + code)
+        .then(response => response.json())
+        .then(data => {
+
+            if (!data || data.length === 0) {
+                document.getElementById("result").innerHTML =
+                    "<span style='color:red'>EA NOT FOUND</span>";
+                return;
+            }
+
+            const item = data[0];
+
+            document.getElementById("result").innerHTML = `
+                <b>EA FOUND</b><br>
+                CODE: ${item.EACODE}<br>
+                DISTRICT: ${item.DISTRICT}<br>
+                WARD: ${item.WARD}
+            `;
+
+            // remove previous highlight
+            if (highlightLayer) {
+                map.removeLayer(highlightLayer);
+            }
+
+            // parse geometry
+            let geometry = JSON.parse(item.geometry);
+
+            const feature = new ol.format.GeoJSON().readFeature(
+                {
+                    type: "Feature",
+                    geometry: geometry
+                },
+                {
+                    dataProjection: "EPSG:32736",
+                    featureProjection: "EPSG:3857"
+                }
+            );
+
+            const source = new ol.source.Vector({
+                features: [feature]
+            });
+
+            // =========================
+            // STYLE (BLACK BORDER + TRANSPARENT FILL)
+            // =========================
+            highlightLayer = new ol.layer.Vector({
+                source: source,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: "black",
+                        width: 2
+                    }),
+                    fill: new ol.style.Fill({
+                        color: "rgba(0,0,0,0)"
+                    })
+                })
+            });
+
+            map.addLayer(highlightLayer);
+
+            // zoom to EA
+            map.getView().fit(source.getExtent(), {
+                padding: [50, 50, 50, 50],
+                maxZoom: 18
+            });
+
+        })
+        .catch(error => {
+            console.log(error);
+            document.getElementById("result").innerHTML =
+                "<span style='color:red'>SERVER ERROR</span>";
+        });
+}
+
+</script>
+
+</body>
+</html>
