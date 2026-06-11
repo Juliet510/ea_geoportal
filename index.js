@@ -27,10 +27,14 @@ app.get("/search/:eacode", async (req, res) => {
   const { data, error } = await supabase
     .from("chitungwizaeas")
     .select("*")
-    .limit(5);
+    .eq("EACODE", eaCode.trim())
+    .maybeSingle();
 
-  if (error) {
-    return res.status(500).json({ error });
+  if (error || !data) {
+    return res.status(404).json({
+      error: "EA not found",
+      details: error || "No matching record"
+    });
   }
 
   res.json(data);
