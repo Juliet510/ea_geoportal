@@ -21,17 +21,20 @@ app.get("/", (req, res) => {
 });
 
 // SEARCH ENUMERATION AREA
-app.get("/search/:eanumber", async (req, res) => {
-  const eaNumber = req.params.eanumber;
+app.get("/search/:eacode", async (req, res) => {
+  const eaCode = req.params.eacode;
 
   const { data, error } = await supabase
     .from("chitungwizaeas")
     .select("*")
-    .eq("eanumber", eaNumber)
+    .eq("EACODE", eaCode)
     .single();
 
-  if (error) {
-    return res.status(404).json({ error: "EA not found", details: error });
+  if (error || !data) {
+    return res.status(404).json({
+      error: "EA not found",
+      details: error || "No matching record"
+    });
   }
 
   res.json(data);
