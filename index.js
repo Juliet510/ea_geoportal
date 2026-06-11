@@ -27,7 +27,7 @@ app.get("/search/:eacode", async (req, res) => {
   const { data, error } = await supabase
     .from("chitungwizaeas")
     .select("*")
-    .filter("EACODE", "eq", eaCode);
+    .ilike("EACODE", eaCode);
 
   if (error || !data || data.length === 0) {
     return res.status(404).json({
