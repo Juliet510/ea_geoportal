@@ -25,10 +25,10 @@ app.get("/search/:eacode", async (req, res) => {
   const eaCode = req.params.eacode;
 
   const { data, error } = await supabase
-    .from("chitungwizaeas")
-    .select("*")
-    .eq("EACODE", eaCode)
-    .single();
+  .from("chitungwizaeas")
+  .select("*")
+  .eq("EACODE", String(eaCode))
+  .maybeSingle();
 
   if (error || !data) {
     return res.status(404).json({
