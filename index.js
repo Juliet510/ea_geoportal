@@ -16,18 +16,13 @@ const supabase = createClient(
 );
 
 // TEST ROUTE
-app.get("/", (req, res) => {
-  res.send("EA Backend is running");
-});
-
-// SEARCH ENUMERATION AREA
 app.get("/search/:eacode", async (req, res) => {
   const eaCode = req.params.eacode;
 
   const { data, error } = await supabase
     .from("chitungwizaeas")
     .select("*")
-    .ilike("EACODE", eaCode);
+    .filter("EACODE", "eq", eaCode);
 
   if (error || !data || data.length === 0) {
     return res.status(404).json({
@@ -38,7 +33,6 @@ app.get("/search/:eacode", async (req, res) => {
 
   res.json(data[0]);
 });
-
 // START SERVER
 const PORT = process.env.PORT || 3000;
 
